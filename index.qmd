@@ -1,11 +1,10 @@
 ---
-title: "Confounder & Randomization Challenge"
-subtitle: "Recovering Lost Figures: Visualizing Confounders and Causal Inference"
+title: "Using Randomization & Stratification to Overcome A Common Cause Confounder"
 format:
   html: default
 bibliography: references.bib
 execute:
-  echo: true
+  echo: false
   eval: true
 ---
 
@@ -48,7 +47,7 @@ Counterintuitively, the surgeon who doesn't "look the part" may actually be the 
 
 ```{python}
 #| label: simulate-data
-#| echo: true
+#| echo: false
 #| message: false
 #| warning: false
 #| include: false
@@ -103,7 +102,7 @@ patients_df.head()
 
 ```{python}
 #| label: load-data-python
-#| echo: true
+#| echo: false
 
 import pandas as pd
 
@@ -119,7 +118,7 @@ patients_df.head()
 
 ```{r}
 #| label: load-data-r
-#| echo: true
+#| echo: false
 
 # Load the observational data
 patients_df <- read.csv('patients_data.csv')
@@ -151,19 +150,66 @@ Let's use data to figure out which surgeon performs better. @fig-plot-outcomes s
 ```{python}
 #| label: fig-plot-outcomes
 #| fig-cap: "Post-Surgical Symptom Score (lower is better) - Observed Data"
-#| echo: true
+#| echo: false
 
-# TODO: Recover Figure 1 - Post-surgical outcomes by patient
-# Load data (already loaded above)
-# Create scatter plot with:
-#   - Different markers for each doctor (circles vs triangles)
-#   - Colorblind-friendly colors
-#   - Mean lines and annotations
-#   - Professional styling
+import matplotlib.pyplot as plt
+import numpy as np
 
-# Hint: Use matplotlib object-oriented style (fig, ax = plt.subplots())
-# Colors: Doc Dreamy = '#4E79A7' (blue), Doc Duck = '#E15759' (coral/red-orange)
+# Create figure with professional styling
+fig, ax = plt.subplots(figsize=(12, 7))
 
+# Define colors
+color_dreamy = '#4E79A7'  # blue
+color_duck = '#E15759'    # coral/red-orange
+
+# Separate data by doctor
+dreamy_data = patients_df[patients_df['doctor_name'] == 'Doc Dreamy']
+duck_data = patients_df[patients_df['doctor_name'] == 'Doc Duck']
+
+# Plot scatter points
+ax.scatter(dreamy_data['patient'], dreamy_data['post_surgical_score'],
+           marker='o', color=color_dreamy, s=60, alpha=0.7, 
+           label='Doc Dreamy', edgecolors='black', linewidths=0.5)
+ax.scatter(duck_data['patient'], duck_data['post_surgical_score'],
+           marker='^', color=color_duck, s=60, alpha=0.7,
+           label='Doc Duck', edgecolors='black', linewidths=0.5)
+
+# Calculate means
+mean_dreamy = dreamy_data['post_surgical_score'].mean()
+mean_duck = duck_data['post_surgical_score'].mean()
+
+# Add horizontal dashed lines for means
+ax.axhline(y=mean_dreamy, color=color_dreamy, linestyle='--', 
+           linewidth=2, alpha=0.8, zorder=0)
+ax.axhline(y=mean_duck, color=color_duck, linestyle='--', 
+           linewidth=2, alpha=0.8, zorder=0)
+
+# Get x-axis limits for annotation positioning
+x_max = patients_df['patient'].max()
+x_annotation = x_max * 0.98
+
+# Add text annotations with shape symbols
+ax.text(x_annotation, mean_dreamy, f'○ {mean_dreamy:.2f}',
+        color=color_dreamy, fontsize=11, ha='right', va='bottom',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                 edgecolor=color_dreamy, alpha=0.8))
+ax.text(x_annotation, mean_duck, f'△ {mean_duck:.2f}',
+        color=color_duck, fontsize=11, ha='right', va='top',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                 edgecolor=color_duck, alpha=0.8))
+
+# Professional styling
+ax.set_xlabel('Patient Number', fontsize=12, fontweight='bold')
+ax.set_ylabel('Post-Surgical Symptom Score (Lower is Better)', 
+              fontsize=12, fontweight='bold')
+ax.set_title('Post-Surgical Symptom Score by Patient and Doctor', 
+             fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+ax.legend(loc='upper right', fontsize=11, framealpha=0.9)
+ax.tick_params(labelsize=10)
+
+plt.tight_layout()
+plt.show()
 ```
 
 ## R
@@ -171,20 +217,73 @@ Let's use data to figure out which surgeon performs better. @fig-plot-outcomes s
 ```{r}
 #| label: fig-plot-outcomes-r
 #| fig-cap: "Post-Surgical Symptom Score (lower is better) - Observed Data"
-#| echo: true
+#| echo: false
 
-# TODO: Recover Figure 1 - Post-surgical outcomes by patient
-# Load data (already loaded above)
-# Create scatter plot with ggplot2 or base R
-# Include:
-#   - Different shapes for each doctor
-#   - Colorblind-friendly colors
-#   - Mean lines and annotations
-#   - Professional styling
+library(ggplot2)
+library(dplyr)
 
-# Hint: Use ggplot2 for professional plots
-# Colors: Doc Dreamy = '#4E79A7' (blue), Doc Duck = '#E15759' (coral/red-orange)
+# Define colors
+color_dreamy <- '#4E79A7'  # blue
+color_duck <- '#E15759'    # coral/red-orange
 
+# Calculate means for annotations
+mean_dreamy <- patients_df %>%
+  filter(doctor_name == 'Doc Dreamy') %>%
+  summarise(mean = mean(post_surgical_score)) %>%
+  pull(mean)
+
+mean_duck <- patients_df %>%
+  filter(doctor_name == 'Doc Duck') %>%
+  summarise(mean = mean(post_surgical_score)) %>%
+  pull(mean)
+
+# Create the plot
+ggplot(patients_df, aes(x = patient, y = post_surgical_score, 
+                        color = doctor_name, shape = doctor_name)) +
+  # Scatter points
+  geom_point(size = 3, alpha = 0.7, stroke = 0.5) +
+  # Horizontal dashed lines for means
+  geom_hline(yintercept = mean_dreamy, color = color_dreamy, 
+             linetype = 'dashed', linewidth = 0.8, alpha = 0.8) +
+  geom_hline(yintercept = mean_duck, color = color_duck, 
+             linetype = 'dashed', linewidth = 0.8, alpha = 0.8) +
+  # Text annotations with shape symbols
+  annotate('text', x = Inf, y = mean_dreamy, 
+           label = paste0('○ ', round(mean_dreamy, 2)),
+           color = color_dreamy, size = 3.5, hjust = 1.05, vjust = -0.3,
+           fontface = 'bold') +
+  annotate('text', x = Inf, y = mean_duck, 
+           label = paste0('△ ', round(mean_duck, 2)),
+           color = color_duck, size = 3.5, hjust = 1.05, vjust = 1.2,
+           fontface = 'bold') +
+  # Color and shape scales
+  scale_color_manual(
+    values = c('Doc Dreamy' = color_dreamy, 'Doc Duck' = color_duck),
+    name = 'Doctor'
+  ) +
+  scale_shape_manual(
+    values = c('Doc Dreamy' = 19, 'Doc Duck' = 17),  # 19 = circle, 17 = triangle
+    name = 'Doctor'
+  ) +
+  # Professional styling
+  labs(
+    x = 'Patient Number',
+    y = 'Post-Surgical Symptom Score (Lower is Better)',
+    title = 'Post-Surgical Symptom Score by Patient and Doctor'
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = 'bold', hjust = 0.5, 
+                             margin = margin(b = 15)),
+    axis.title = element_text(size = 12, face = 'bold'),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 11, face = 'bold'),
+    legend.text = element_text(size = 10),
+    legend.position = 'right',
+    panel.grid.major = element_line(color = 'grey90', linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(20, 20, 20, 20)
+  )
 ```
 :::
 
@@ -326,14 +425,66 @@ head(patients_randomized_df)
 ```{python}
 #| label: fig-plot-outcomes-randomized
 #| fig-cap: "Post-Surgical Symptom Score (lower is better) for randomized patients."
-#| echo: true
+#| echo: false
 
-# TODO: Recover Figure 2 - Randomized assignment outcomes
-# Load randomized data (already loaded above)
-# Create scatter plot similar to Figure 1
-# Use same styling and color scheme
-# Title: "Post-Surgical Symptom Score (Randomized Assignment)"
+import matplotlib.pyplot as plt
+import numpy as np
 
+# Create figure with professional styling
+fig, ax = plt.subplots(figsize=(12, 7))
+
+# Define colors (same as Figure 1)
+color_dreamy = '#4E79A7'  # blue
+color_duck = '#E15759'    # coral/red-orange
+
+# Separate data by doctor
+dreamy_data = patients_randomized_df[patients_randomized_df['doctor_name'] == 'Doc Dreamy']
+duck_data = patients_randomized_df[patients_randomized_df['doctor_name'] == 'Doc Duck']
+
+# Plot scatter points
+ax.scatter(dreamy_data['patient'], dreamy_data['post_surgical_score'],
+           marker='o', color=color_dreamy, s=60, alpha=0.7, 
+           label='Doc Dreamy', edgecolors='black', linewidths=0.5)
+ax.scatter(duck_data['patient'], duck_data['post_surgical_score'],
+           marker='^', color=color_duck, s=60, alpha=0.7,
+           label='Doc Duck', edgecolors='black', linewidths=0.5)
+
+# Calculate means
+mean_dreamy = dreamy_data['post_surgical_score'].mean()
+mean_duck = duck_data['post_surgical_score'].mean()
+
+# Add horizontal dashed lines for means
+ax.axhline(y=mean_dreamy, color=color_dreamy, linestyle='--', 
+           linewidth=2, alpha=0.8, zorder=0)
+ax.axhline(y=mean_duck, color=color_duck, linestyle='--', 
+           linewidth=2, alpha=0.8, zorder=0)
+
+# Get x-axis limits for annotation positioning
+x_max = patients_randomized_df['patient'].max()
+x_annotation = x_max * 0.98
+
+# Add text annotations with shape symbols
+ax.text(x_annotation, mean_dreamy, f'○ {mean_dreamy:.2f}',
+        color=color_dreamy, fontsize=11, ha='right', va='bottom',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                 edgecolor=color_dreamy, alpha=0.8))
+ax.text(x_annotation, mean_duck, f'△ {mean_duck:.2f}',
+        color=color_duck, fontsize=11, ha='right', va='top',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                 edgecolor=color_duck, alpha=0.8))
+
+# Professional styling
+ax.set_xlabel('Patient Number', fontsize=12, fontweight='bold')
+ax.set_ylabel('Post-Surgical Symptom Score (Lower is Better)', 
+              fontsize=12, fontweight='bold')
+ax.set_title('Post-Surgical Symptom Score (Randomized Assignment)', 
+             fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+ax.legend(loc='upper right', fontsize=11, framealpha=0.9)
+ax.tick_params(labelsize=10)
+
+plt.tight_layout()
+plt.show()
 ```
 
 ## R
@@ -341,13 +492,73 @@ head(patients_randomized_df)
 ```{r}
 #| label: fig-plot-outcomes-randomized-r
 #| fig-cap: "Post-Surgical Symptom Score (lower is better) for randomized patients."
-#| echo: true
+#| echo: false
 
-# TODO: Recover Figure 2 - Randomized assignment outcomes
-# Load randomized data (already loaded above)
-# Create scatter plot similar to Figure 1
-# Use same styling and color scheme
+library(ggplot2)
+library(dplyr)
 
+# Define colors (same as Figure 1)
+color_dreamy <- '#4E79A7'  # blue
+color_duck <- '#E15759'    # coral/red-orange
+
+# Calculate means for annotations
+mean_dreamy <- patients_randomized_df %>%
+  filter(doctor_name == 'Doc Dreamy') %>%
+  summarise(mean = mean(post_surgical_score)) %>%
+  pull(mean)
+
+mean_duck <- patients_randomized_df %>%
+  filter(doctor_name == 'Doc Duck') %>%
+  summarise(mean = mean(post_surgical_score)) %>%
+  pull(mean)
+
+# Create the plot
+ggplot(patients_randomized_df, aes(x = patient, y = post_surgical_score, 
+                                    color = doctor_name, shape = doctor_name)) +
+  # Scatter points
+  geom_point(size = 3, alpha = 0.7, stroke = 0.5) +
+  # Horizontal dashed lines for means
+  geom_hline(yintercept = mean_dreamy, color = color_dreamy, 
+             linetype = 'dashed', linewidth = 0.8, alpha = 0.8) +
+  geom_hline(yintercept = mean_duck, color = color_duck, 
+             linetype = 'dashed', linewidth = 0.8, alpha = 0.8) +
+  # Text annotations with shape symbols
+  annotate('text', x = Inf, y = mean_dreamy, 
+           label = paste0('○ ', round(mean_dreamy, 2)),
+           color = color_dreamy, size = 3.5, hjust = 1.05, vjust = -0.3,
+           fontface = 'bold') +
+  annotate('text', x = Inf, y = mean_duck, 
+           label = paste0('△ ', round(mean_duck, 2)),
+           color = color_duck, size = 3.5, hjust = 1.05, vjust = 1.2,
+           fontface = 'bold') +
+  # Color and shape scales
+  scale_color_manual(
+    values = c('Doc Dreamy' = color_dreamy, 'Doc Duck' = color_duck),
+    name = 'Doctor'
+  ) +
+  scale_shape_manual(
+    values = c('Doc Dreamy' = 19, 'Doc Duck' = 17),  # 19 = circle, 17 = triangle
+    name = 'Doctor'
+  ) +
+  # Professional styling
+  labs(
+    x = 'Patient Number',
+    y = 'Post-Surgical Symptom Score (Lower is Better)',
+    title = 'Post-Surgical Symptom Score (Randomized Assignment)'
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = 'bold', hjust = 0.5, 
+                             margin = margin(b = 15)),
+    axis.title = element_text(size = 12, face = 'bold'),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 11, face = 'bold'),
+    legend.text = element_text(size = 10),
+    legend.position = 'right',
+    panel.grid.major = element_line(color = 'grey90', linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(20, 20, 20, 20)
+  )
 ```
 :::
 
@@ -374,20 +585,71 @@ The key to handling a common cause confounder is to stratify by the common cause
 ```{python}
 #| label: fig-plot-outcomes-severity
 #| fig-cap: "Post-Surgical Symptom Score (lower is better) by Patient and Severity"
-#| echo: true
+#| echo: false
 
-# TODO: Recover Figure 3 - Outcomes by patient severity (stratification)
-# Load observational data (already loaded above)
-# Create scatter plot with:
-#   - X-axis: Initial Patient Severity
-#   - Y-axis: Post-Surgical Symptom Score
-#   - Same color/marker scheme as previous figures
-#   - Mean lines and annotations
-#   - Shaded region from -1 to 1 on x-axis (use ax.axvspan or similar)
-#   - Professional styling
+import matplotlib.pyplot as plt
+import numpy as np
 
-# Hint: Use axvspan(-1, 1, alpha=0.15, color='gray', zorder=0) for the overlay
+# Create figure with professional styling
+fig, ax = plt.subplots(figsize=(12, 7))
 
+# Define colors (same as previous figures)
+color_dreamy = '#4E79A7'  # blue
+color_duck = '#E15759'    # coral/red-orange
+
+# Separate data by doctor
+dreamy_data = patients_df[patients_df['doctor_name'] == 'Doc Dreamy']
+duck_data = patients_df[patients_df['doctor_name'] == 'Doc Duck']
+
+# Add shaded rectangular overlay highlighting severity between -1 and 1
+ax.axvspan(-1, 1, alpha=0.15, color='gray', zorder=0)
+
+# Plot scatter points
+ax.scatter(dreamy_data['severity'], dreamy_data['post_surgical_score'],
+           marker='o', color=color_dreamy, s=60, alpha=0.7, 
+           label='Doc Dreamy', edgecolors='black', linewidths=0.5, zorder=2)
+ax.scatter(duck_data['severity'], duck_data['post_surgical_score'],
+           marker='^', color=color_duck, s=60, alpha=0.7,
+           label='Doc Duck', edgecolors='black', linewidths=0.5, zorder=2)
+
+# Calculate means
+mean_dreamy = dreamy_data['post_surgical_score'].mean()
+mean_duck = duck_data['post_surgical_score'].mean()
+
+# Add horizontal dashed lines for means
+ax.axhline(y=mean_dreamy, color=color_dreamy, linestyle='--', 
+           linewidth=2, alpha=0.8, zorder=1)
+ax.axhline(y=mean_duck, color=color_duck, linestyle='--', 
+           linewidth=2, alpha=0.8, zorder=1)
+
+# Get x-axis limits for annotation positioning
+x_max = patients_df['severity'].max()
+x_min = patients_df['severity'].min()
+x_range = x_max - x_min
+x_annotation = x_max - x_range * 0.02
+
+# Add text annotations with shape symbols
+ax.text(x_annotation, mean_dreamy, f'○ {mean_dreamy:.2f}',
+        color=color_dreamy, fontsize=11, ha='right', va='bottom',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                 edgecolor=color_dreamy, alpha=0.8), zorder=3)
+ax.text(x_annotation, mean_duck, f'△ {mean_duck:.2f}',
+        color=color_duck, fontsize=11, ha='right', va='top',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                 edgecolor=color_duck, alpha=0.8), zorder=3)
+
+# Professional styling
+ax.set_xlabel('Initial Patient Severity', fontsize=12, fontweight='bold')
+ax.set_ylabel('Post-Surgical Symptom Score (Lower is Better)', 
+              fontsize=12, fontweight='bold')
+ax.set_title('Post-Surgical Symptom Score by Patient Severity', 
+             fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+ax.legend(loc='upper right', fontsize=11, framealpha=0.9)
+ax.tick_params(labelsize=10)
+
+plt.tight_layout()
+plt.show()
 ```
 
 ## R
@@ -395,18 +657,81 @@ The key to handling a common cause confounder is to stratify by the common cause
 ```{r}
 #| label: fig-plot-outcomes-severity-r
 #| fig-cap: "Post-Surgical Symptom Score (lower is better) by Patient and Severity"
-#| echo: true
+#| echo: false
 
-# TODO: Recover Figure 3 - Outcomes by patient severity (stratification)
-# Load observational data (already loaded above)
-# Create scatter plot with:
-#   - X-axis: Initial Patient Severity
-#   - Y-axis: Post-Surgical Symptom Score
-#   - Same color/marker scheme as previous figures
-#   - Mean lines and annotations
-#   - Shaded region from -1 to 1 on x-axis
-#   - Professional styling
+library(ggplot2)
+library(dplyr)
 
+# Define colors (same as previous figures)
+color_dreamy <- '#4E79A7'  # blue
+color_duck <- '#E15759'    # coral/red-orange
+
+# Calculate means for annotations
+mean_dreamy <- patients_df %>%
+  filter(doctor_name == 'Doc Dreamy') %>%
+  summarise(mean = mean(post_surgical_score)) %>%
+  pull(mean)
+
+mean_duck <- patients_df %>%
+  filter(doctor_name == 'Doc Duck') %>%
+  summarise(mean = mean(post_surgical_score)) %>%
+  pull(mean)
+
+# Get y-axis range for shaded region
+y_min <- min(patients_df$post_surgical_score)
+y_max <- max(patients_df$post_surgical_score)
+y_range <- y_max - y_min
+
+# Create the plot
+ggplot(patients_df, aes(x = severity, y = post_surgical_score, 
+                        color = doctor_name, shape = doctor_name)) +
+  # Shaded rectangular overlay highlighting severity between -1 and 1
+  annotate('rect', xmin = -1, xmax = 1, ymin = -Inf, ymax = Inf,
+           alpha = 0.15, fill = 'gray') +
+  # Scatter points
+  geom_point(size = 3, alpha = 0.7, stroke = 0.5) +
+  # Horizontal dashed lines for means
+  geom_hline(yintercept = mean_dreamy, color = color_dreamy, 
+             linetype = 'dashed', linewidth = 0.8, alpha = 0.8) +
+  geom_hline(yintercept = mean_duck, color = color_duck, 
+             linetype = 'dashed', linewidth = 0.8, alpha = 0.8) +
+  # Text annotations with shape symbols
+  annotate('text', x = Inf, y = mean_dreamy, 
+           label = paste0('○ ', round(mean_dreamy, 2)),
+           color = color_dreamy, size = 3.5, hjust = 1.05, vjust = -0.3,
+           fontface = 'bold') +
+  annotate('text', x = Inf, y = mean_duck, 
+           label = paste0('△ ', round(mean_duck, 2)),
+           color = color_duck, size = 3.5, hjust = 1.05, vjust = 1.2,
+           fontface = 'bold') +
+  # Color and shape scales
+  scale_color_manual(
+    values = c('Doc Dreamy' = color_dreamy, 'Doc Duck' = color_duck),
+    name = 'Doctor'
+  ) +
+  scale_shape_manual(
+    values = c('Doc Dreamy' = 19, 'Doc Duck' = 17),  # 19 = circle, 17 = triangle
+    name = 'Doctor'
+  ) +
+  # Professional styling
+  labs(
+    x = 'Initial Patient Severity',
+    y = 'Post-Surgical Symptom Score (Lower is Better)',
+    title = 'Post-Surgical Symptom Score by Patient Severity'
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = 'bold', hjust = 0.5, 
+                             margin = margin(b = 15)),
+    axis.title = element_text(size = 12, face = 'bold'),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 11, face = 'bold'),
+    legend.text = element_text(size = 10),
+    legend.position = 'right',
+    panel.grid.major = element_line(color = 'grey90', linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(20, 20, 20, 20)
+  )
 ```
 :::
 
@@ -452,7 +777,6 @@ The take-home lesson: The world is messy, and the numbers will mislead you if yo
 **For Final 15% (Bonus - 100% Total):**
 
 - [ ] Remove all challenge-related comments from code (no "TODO", "Challenge Task", "Recover Figure")
-- [ ] Transform document title/subtitle to "Using Randomization & Stratification to Overcome A Common Cause Confounder"
 - [ ] Remove challenge framing sections (challenge callout, submission checklist, tips)
 - [ ] Polish the document to read like a complete, professional report
 - [ ] Ensure the narrative flows naturally without challenge references
